@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory dei Gradi dell'Aggettivo - Didattica Digitale</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* Griglia del Gioco */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        /* Card Styling */
+        .card {
+            aspect-ratio: 2/3;
+            background-color: var(--accent);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 10px;
+            transition: transform 0.3s, background-color 0.3s;
+            user-select: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card.hidden {
+            background-color: var(--primary);
+            color: transparent;
+        }
+
+        .card.hidden::after {
+            content: "?";
+            color: rgba(255,255,255,0.3);
+            font-size: 2.5rem;
+        }
+
+        .card.matched {
+            background-color: var(--success);
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .card.selected {
+            transform: scale(1.05);
+            background-color: #2980b9;
+        }
+
+        .card.wrong {
+            background-color: var(--error);
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 25px;
+            font-size: 1rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Memory dei Gradi</h1>
+    <p>Trova la terna: <b>Positivo + Comparativo + Superlativo</b></p>
+</header>
+
+<div class="stats">
+    Terne trovate: <span id="score">0</span> | Tentativi: <span id="attempts">0</span>
+</div>
+
+<div class="game-board" id="board"></div>
+
+<button onclick="initGame()">Ricomincia Partita</button>
+
+<script>
+    const data = [
+        { id: 1, p: "Alto", c: "Più alto", s: "Altissimo" },
+        { id: 2, p: "Bello", c: "Più bello", s: "Bellissimo" },
+        { id: 3, p: "Veloce", c: "Più veloce", s: "Velocissimo" },
+        { id: 4, p: "Forte", c: "Più forte", s: "Fortissimo" },
+        { id: 5, p: "Grande", c: "Più grande", s: "Grandissimo" },
+        { id: 6, p: "Buono", c: "Più buono", s: "Buonissimo" },
+        { id: 7, p: "Piccolo", c: "Più piccolo", s: "Piccolissimo" },
+        { id: 8, p: "Lento", c: "Più lento", s: "Lentissimo" }
+    ];
+
+    let cards = [];
+    let selectedCards = [];
+    let score = 0;
+    let attempts = 0;
+    let isLocking = false;
+
+    function initGame() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+        cards = [];
+        selectedCards = [];
+        score = 0;
+        attempts = 0;
+        updateStats();
+
+        // Trasformiamo l'oggetto data in un array piano di 24 carte
+        data.forEach(item => {
+            cards.push({ id: item.id, text: item.p, type: 'pos' });
+            cards.push({ id: item.id, text: item.c, type: 'comp' });
+            cards.push({ id: item.id, text: item.s, type: 'sup' });
+        });
+
+        // Mischia (Fisher-Yates shuffle)
+        cards.sort(() => Math.random() - 0.5);
+
+        cards.forEach((cardData, index) => {
+            const cardEl = document.createElement('div');
+            cardEl.classList.add('card', 'hidden');
+            cardEl.innerText = cardData.text;
+            cardEl.dataset.id = cardData.id;
+            cardEl.dataset.index = index;
+            cardEl.onclick = () => handleCardClick(cardEl);
+            board.appendChild(cardEl);
+        });
+    }
+
+    function handleCardClick(cardEl) {
+        if (isLocking || cardEl.classList.contains('selected') || cardEl.classList.contains('matched')) return;
+
+        cardEl.classList.remove('hidden');
+        cardEl.classList.add('selected');
+        selectedCards.push(cardEl);
+
+        if (selectedCards.length === 3) {
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        isLocking = true;
+        attempts++;
+        
+        const id1 = selectedCards[0].dataset.id;
+        const id2 = selectedCards[1].dataset.id;
+        const id3 = selectedCards[2].dataset.id;
+
+        if (id1 === id2 && id2 === id3) {
+            // Successo
+            setTimeout(() => {
+                selectedCards.forEach(c => c.classList.add('matched'));
+                score++;
+                updateStats();
+                selectedCards = [];
+                isLocking = false;
+                if (score === data.length) alert("Complimenti! Hai completato il memory!");
+            }, 600);
+        } else {
+            // Errore
+            selectedCards.forEach(c => c.classList.add('wrong'));
+            setTimeout(() => {
+                selectedCards.forEach(c => {
+                    c.classList.remove('selected', 'wrong');
+                    c.classList.add('hidden');
+                });
+                selectedCards = [];
+                isLocking = false;
+            }, 1200);
+        }
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('score').innerText = score;
+        document.getElementById('attempts').innerText = attempts;
+    }
+
+    // Avvio iniziale
+    initGame();
+</script>
+
+</body>
+</html>
